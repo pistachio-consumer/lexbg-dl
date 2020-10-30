@@ -20,7 +20,7 @@ python -m virtualenv env
 . .\env\Scripts\activate
 ```
 
-1. Install the `lexbg-dl` python package from the local repo
+1. Install the python package from the local repo
 ```bash
 python -m pip install .
 ```
