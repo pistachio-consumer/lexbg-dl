@@ -1,6 +1,8 @@
 import argparse
 from asyncio import get_event_loop
-from time import time_ns
+from os import getcwd
+from tempfile import NamedTemporaryFile
+from time import time
 
 from aiohttp import ClientOSError
 from aiohttp import ClientPayloadError
@@ -13,13 +15,15 @@ from lxml.html import fromstring
 from lxml.html import HTMLParser
 
 
-EXCEPTIONS = (
+HTTP_EXCEPTIONS = (
     ClientOSError,
     ClientPayloadError,
     InvalidURL,
     OSError,
     TimeoutError,
 )
+
+HTML_ENCODING = 'utf-8'
 CONTENT_PATH = '//*[@id="colleft"]/descendant-or-self::div[@class="box"]'
 BAD_XPATHS = (
     '//div[contains(@id, "buttons")]',
@@ -35,7 +39,7 @@ async def _main(url):
     async with ClientSession(**options) as session:
         try:
             resp = await session.get(url, allow_redirects=False)
-        except EXCEPTIONS:
+        except HTTP_EXCEPTIONS:
             raise SystemExit('Error while downloading content')
 
         async with resp:
@@ -61,7 +65,14 @@ async def _main(url):
         for bad in content.xpath(xpath):
             bad.getparent().remove(bad)
 
-    ElementTree(content).write(f'{time_ns()}.html')
+    with NamedTemporaryFile(
+            mode='w+b',
+            suffix='.html',
+            prefix=f'{int(time())}_',
+            dir=getcwd(),
+            delete=False,
+    ) as html_file:
+        ElementTree(content).write(html_file, encoding=HTML_ENCODING)
 
 
 def main():
