@@ -34,7 +34,7 @@ BAD_XPATHS = (
 )
 
 
-def export(html):
+def export(html, custom_filename=''):
     try:
         root = fromstring(html, parser=HTMLParser(collect_ids=False))
     except (ParserError, XMLSyntaxError):
@@ -49,21 +49,27 @@ def export(html):
         for bad in content.xpath(xpath):
             bad.getparent().remove(bad)
 
-    with NamedTemporaryFile(
+    if custom_filename:
+        filename = custom_filename
+    else:
+        file_options = dict(
             mode='w+b',
             suffix='.html',
             prefix=f'{int(time())}_',
             dir=getcwd(),
             delete=False,
-    ) as html_file:
-        ElementTree(content).write(html_file, encoding=HTML_ENCODING)
+        )
+        with NamedTemporaryFile(**file_options) as html_file:
+            filename = html_file.name
+
+    ElementTree(content).write(filename, encoding=HTML_ENCODING)
 
 
-async def _main(url):
+async def _main(args):
     options = dict(headers={'User-Agent': 'Mozilla/5.0'})
     async with ClientSession(**options) as session:
         try:
-            resp = await session.get(url, allow_redirects=False)
+            resp = await session.get(args.url, allow_redirects=False)
         except HTTP_EXCEPTIONS:
             raise SystemExit('Error while downloading content')
 
@@ -76,7 +82,7 @@ async def _main(url):
             except TimeoutError:
                 raise SystemExit('Timeout while reading content')
 
-    await get_event_loop().run_in_executor(None, export, html)
+    await get_event_loop().run_in_executor(None, export, html, args.output)
 
 
 def main():
@@ -84,12 +90,13 @@ def main():
     parser.add_argument(
         '-V', '--version', action='version', version='%(prog)s 0.0.1',
     )
-    parser.add_argument('url', type=str, help='Lex BG page url')
+    parser.add_argument('-o', '--output', help='Write output to specific file')
+    parser.add_argument('url', help='Lex BG page url')
     args = parser.parse_args()
 
     loop = get_event_loop()
     try:
-        exit(loop.run_until_complete(_main(args.url)))
+        exit(loop.run_until_complete(_main(args)))
     except KeyboardInterrupt:
         raise SystemExit(130)
 
