@@ -24,33 +24,17 @@ HTTP_EXCEPTIONS = (
 )
 
 HTML_ENCODING = 'utf-8'
-CONTENT_PATH = '//*[@id="colleft"]/descendant-or-self::div[@class="box"]'
+CONTENT_PATH = '//*[@id="colleft"]/descendant::div[@class="boxi boxinb"]'
 BAD_XPATHS = (
     '//div[contains(@id, "buttons")]',
-    '//div[@align="right"]',
+    '//div[@align="center" or @align="right"]',
     '//div[@id="tl"]',
     '//p[@class="buttons"]',
     '//script',
 )
 
 
-async def _main(url):
-    options = dict(headers={'User-Agent': 'Mozilla/5.0'})
-    async with ClientSession(**options) as session:
-        try:
-            resp = await session.get(url, allow_redirects=False)
-        except HTTP_EXCEPTIONS:
-            raise SystemExit('Error while downloading content')
-
-        async with resp:
-            if resp.status != 200:
-                raise SystemExit(f'Ivalid HTTP response: {resp.status}')
-
-            try:
-                html = await resp.text()
-            except TimeoutError:
-                raise SystemExit('Timeout while reading content')
-
+def export(html):
     try:
         root = fromstring(html, parser=HTMLParser(collect_ids=False))
     except (ParserError, XMLSyntaxError):
@@ -73,6 +57,26 @@ async def _main(url):
             delete=False,
     ) as html_file:
         ElementTree(content).write(html_file, encoding=HTML_ENCODING)
+
+
+async def _main(url):
+    options = dict(headers={'User-Agent': 'Mozilla/5.0'})
+    async with ClientSession(**options) as session:
+        try:
+            resp = await session.get(url, allow_redirects=False)
+        except HTTP_EXCEPTIONS:
+            raise SystemExit('Error while downloading content')
+
+        async with resp:
+            if resp.status != 200:
+                raise SystemExit(f'Ivalid HTTP response: {resp.status}')
+
+            try:
+                html = await resp.text()
+            except TimeoutError:
+                raise SystemExit('Timeout while reading content')
+
+    await get_event_loop().run_in_executor(None, export, html)
 
 
 def main():
